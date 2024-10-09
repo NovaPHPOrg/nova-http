@@ -4,7 +4,6 @@ namespace nova\plugin\http;
 
 use Error;
 use nova\framework\App;
-use nova\framework\exception\AppExitException;
 use nova\framework\log\Logger;
 
 class HttpClient
@@ -15,7 +14,7 @@ class HttpClient
     private string $url_params = "";
     private array $headers = [];
 
-    public function __construct($base_url)
+    public function __construct($base_url = "")
     {
         $this->curl = curl_init();
         curl_setopt($this->curl, CURLOPT_SSL_VERIFYPEER, FALSE);
