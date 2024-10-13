@@ -79,6 +79,18 @@ class HttpClient
     }
 
     /**
+     * 设置header
+     * @param $key
+     * @param $value
+     * @return $this
+     */
+    public function setHeader($key, $value): HttpClient
+    {
+        $this->headers[$key] = $value;
+        return $this;
+    }
+
+    /**
      * get请求
      * @return $this
      */
