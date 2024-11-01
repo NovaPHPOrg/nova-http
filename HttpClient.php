@@ -2,13 +2,14 @@
 
 namespace nova\plugin\http;
 
+use CurlHandle;
 use Error;
 use nova\framework\App;
 use nova\framework\log\Logger;
 
 class HttpClient
 {
-    private $curl = null;
+    private ?CurlHandle $curl = null;
     private string $base_url = "";
     private string $path = "";
     private string $url_params = "";
@@ -18,7 +19,6 @@ class HttpClient
     {
         $this->curl = curl_init();
         curl_setopt($this->curl, CURLOPT_SSL_VERIFYPEER, FALSE);
-
         curl_setopt($this->curl, CURLOPT_SSL_VERIFYHOST, FALSE);
         curl_setopt($this->curl, CURLOPT_HEADER, 1);
         curl_setopt($this->curl, CURLOPT_RETURNTRANSFER, 1);
