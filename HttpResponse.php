@@ -1,4 +1,5 @@
 <?php
+
 /*
  * Copyright (c) 2025. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
  * Morbi non lorem porttitor neque feugiat blandit. Ut vitae ipsum eget quam lacinia accumsan.
@@ -76,7 +77,7 @@ class HttpResponse
 
     protected function setHeaders(array $request, string $header_string): void
     {
-        $headers_arr = array_filter(array_map('trim', explode("\r\n", $header_string)), function($value) {
+        $headers_arr = array_filter(array_map('trim', explode("\r\n", $header_string)), function ($value) {
             return str_contains($value, ':');
         });
 

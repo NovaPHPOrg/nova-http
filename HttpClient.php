@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /*
  * Copyright (c) 2025. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
  * Morbi non lorem porttitor neque feugiat blandit. Ut vitae ipsum eget quam lacinia accumsan.
@@ -25,8 +28,8 @@ class HttpClient
     public function __construct($base_url = "")
     {
         $this->curl = curl_init();
-        curl_setopt($this->curl, CURLOPT_SSL_VERIFYPEER, FALSE);
-        curl_setopt($this->curl, CURLOPT_SSL_VERIFYHOST, FALSE);
+        curl_setopt($this->curl, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($this->curl, CURLOPT_SSL_VERIFYHOST, false);
         curl_setopt($this->curl, CURLOPT_HEADER, 1);
         curl_setopt($this->curl, CURLOPT_RETURNTRANSFER, 1);
         $this->headers['user-agent'] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.81 Safari/537.36 Edg/104.0.1293.54";
@@ -35,19 +38,19 @@ class HttpClient
 
     /**
      * 设置代理
-     * @param $host
-     * @param $port
-     * @param string $username
-     * @param string $password
+     * @param         $host
+     * @param         $port
+     * @param  string $username
+     * @param  string $password
      * @return $this
      */
-    function proxy($host, $port, string $username='', string $password=''): HttpClient
+    public function proxy($host, $port, string $username = '', string $password = ''): HttpClient
     {
-        if(!empty($host)) {
+        if (!empty($host)) {
             curl_setopt($this->curl, CURLOPT_PROXY, $host);
             curl_setopt($this->curl, CURLOPT_PROXYPORT, $port);
         }
-        if(!empty($username)){
+        if (!empty($username)) {
             curl_setopt($this->curl, CURLOPT_PROXYUSERPWD, "$username:$password");
         }
         return $this;
@@ -55,20 +58,20 @@ class HttpClient
 
     /**
      * 设置超时时间
-     * @param $timeout int
+     * @param             $timeout int
      * @return HttpClient
      */
-    function timeout(int $timeout = 30): HttpClient
+    public function timeout(int $timeout = 30): HttpClient
     {
         curl_setopt($this->curl, CURLOPT_TIMEOUT, $timeout);
         return $this;
     }
     /**
      * 初始化
-     * @param $base_url string 基础URL
+     * @param             $base_url string 基础URL
      * @return HttpClient
      */
-    static function init(string $base_url = ''): HttpClient
+    public static function init(string $base_url = ''): HttpClient
     {
         return new HttpClient($base_url);
     }
@@ -87,8 +90,8 @@ class HttpClient
 
     /**
      * 设置header
-     * @param $key
-     * @param $value
+     * @param        $key
+     * @param        $value
      * @return $this
      */
     public function setHeader($key, $value): HttpClient
@@ -101,15 +104,15 @@ class HttpClient
      * get请求
      * @return $this
      */
-    function get(): HttpClient
+    public function get(): HttpClient
     {
         return $this->setOption(CURLOPT_HTTPGET, true);
     }
 
     /**
      * 设置CURL选项
-     * @param int $curl_opt
-     * @param mixed $value
+     * @param  int        $curl_opt
+     * @param  mixed      $value
      * @return HttpClient
      */
     public function setOption(int $curl_opt, $value): HttpClient
@@ -120,8 +123,8 @@ class HttpClient
 
     /**
      * post请求
-     * @param array|string $data post的数据
-     * @param string $content_type
+     * @param  array|string $data         post的数据
+     * @param  string       $content_type
      * @return $this
      */
     public function post($data, string $content_type = 'json'): self
@@ -141,7 +144,7 @@ class HttpClient
             }
         } elseif ($content_type == 'json') {
             $this->headers["Content-Type"] = 'application/json';
-            if(is_array($data)){
+            if (is_array($data)) {
                 $data = json_encode($data);
             }
         }
@@ -151,11 +154,11 @@ class HttpClient
 
     /**
      * put请求
-     * @param array $data
-     * @param string $content_type
+     * @param  array  $data
+     * @param  string $content_type
      * @return $this
      */
-    function put(array $data, string $content_type = 'json'): HttpClient
+    public function put(array $data, string $content_type = 'json'): HttpClient
     {
         $this->setOption(CURLOPT_CUSTOMREQUEST, "PUT");
         $this->setData($data, $content_type);
@@ -164,11 +167,11 @@ class HttpClient
 
     /**
      * patch请求
-     * @param array $data
-     * @param string $content_type
+     * @param  array  $data
+     * @param  string $content_type
      * @return $this
      */
-    function patch(array $data, string $content_type = 'json'): HttpClient
+    public function patch(array $data, string $content_type = 'json'): HttpClient
     {
         $this->setOption(CURLOPT_CUSTOMREQUEST, "PATCH");
         $this->setData($data, $content_type);
@@ -179,17 +182,16 @@ class HttpClient
      * delete请求
      * @return $this
      */
-    function delete(): HttpClient
+    public function delete(): HttpClient
     {
         $this->setOption(CURLOPT_CUSTOMREQUEST, "DELETE");
         return $this;
     }
 
-
     /**
      * 发出请求
-     * @param string $path
-     * @param array $url_params
+     * @param  string            $path
+     * @param  array             $url_params
      * @return HttpResponse|null
      * @throws HttpException
      */
@@ -214,7 +216,7 @@ class HttpClient
 
         $this->setOption(CURLOPT_HTTPHEADER, $headers);
         $this->setOption(CURLOPT_RETURNTRANSFER, true);
-        $this->setOption(CURLOPT_FOLLOWLOCATION,true);
+        $this->setOption(CURLOPT_FOLLOWLOCATION, true);
         try {
             if (App::getInstance()->debug) {
                 $this->setOption(CURLOPT_VERBOSE, true);
@@ -224,11 +226,9 @@ class HttpClient
 
             $request_exec = curl_exec($this->curl);
 
-
             if ($request_exec === false) {
                 throw new HttpException("HttpClient Error: " . curl_errno($this->curl) . " " . curl_error($this->curl));
             }
-
 
             if (App::getInstance()->debug && isset($streamVerboseHandle)) {
                 rewind($streamVerboseHandle);
@@ -236,8 +236,7 @@ class HttpClient
                 Logger::info('HttpClient Result', $verboseLog);
             }
 
-
-            return new HttpResponse($this->curl,$headers, $request_exec);
+            return new HttpResponse($this->curl, $headers, $request_exec);
 
         } catch (Error $exception) {
             throw new HttpException($exception->getMessage());
@@ -252,9 +251,9 @@ class HttpClient
     private function url(): string
     {
 
-        if(str_starts_with($this->path, "http")){
+        if (str_starts_with($this->path, "http")) {
             $url = $this->path;
-        }else{
+        } else {
             $url = rtrim($this->base_url, '/') . "/" . ltrim($this->path, '/');
         }
         if ($this->url_params != '') {
