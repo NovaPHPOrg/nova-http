@@ -12,8 +12,8 @@ declare(strict_types=1);
 
 namespace nova\plugin\http;
 
-use nova\framework\App;
-use nova\framework\log\Logger;
+use nova\framework\core\Context;
+use nova\framework\core\Logger;
 
 class HttpResponse
 {
@@ -36,7 +36,7 @@ class HttpResponse
         $this->http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
         $this->meta['execution_time'] = curl_getinfo($curl, CURLINFO_TOTAL_TIME);
 
-        if (App::getInstance()->debug) {
+        if (Context::instance()->isDebug()) {
             Logger::info('请求时间：' . $this->meta['execution_time'] . '秒');
         }
 
@@ -70,7 +70,7 @@ class HttpResponse
         $this->setHeaders($request_headers, $header_string);
         $this->body = substr($request_exec, $header_len);
 
-        if (App::getInstance()->debug) {
+        if (Context::instance()->isDebug()) {
             $this->logResponse();
         }
     }

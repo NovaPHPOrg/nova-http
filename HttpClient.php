@@ -15,7 +15,8 @@ namespace nova\plugin\http;
 use CurlHandle;
 use Error;
 use nova\framework\App;
-use nova\framework\log\Logger;
+use nova\framework\core\Context;
+use nova\framework\core\Logger;
 
 class HttpClient
 {
@@ -218,7 +219,7 @@ class HttpClient
         $this->setOption(CURLOPT_RETURNTRANSFER, true);
         $this->setOption(CURLOPT_FOLLOWLOCATION, true);
         try {
-            if (App::getInstance()->debug) {
+            if (Context::instance()->isDebug()) {
                 $this->setOption(CURLOPT_VERBOSE, true);
                 $streamVerboseHandle = fopen('php://temp', 'w+');
                 $this->setOption(CURLOPT_STDERR, $streamVerboseHandle);
@@ -230,10 +231,10 @@ class HttpClient
                 throw new HttpException("HttpClient Error: " . curl_errno($this->curl) . " " . curl_error($this->curl));
             }
 
-            if (App::getInstance()->debug && isset($streamVerboseHandle)) {
+            if (Context::instance()->isDebug() && isset($streamVerboseHandle)) {
                 rewind($streamVerboseHandle);
                 $verboseLog = stream_get_contents($streamVerboseHandle);
-                Logger::info('HttpClient Result', $verboseLog);
+                Logger::info('HttpClient Result', [$verboseLog]);
             }
 
             return new HttpResponse($this->curl, $headers, $request_exec);
