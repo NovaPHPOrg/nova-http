@@ -14,7 +14,6 @@ namespace nova\plugin\http;
 
 use CurlHandle;
 use Error;
-use nova\framework\App;
 use nova\framework\core\Context;
 use nova\framework\core\Logger;
 
