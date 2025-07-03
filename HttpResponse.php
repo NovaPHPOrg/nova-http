@@ -53,16 +53,6 @@ class HttpResponse
         return $this->body;
     }
 
-    public function getHttpCode(): int
-    {
-        return $this->http_code;
-    }
-
-    public function getHeaders(): array
-    {
-        return $this->headers;
-    }
-
     protected function setBody($client, array $request_headers, string $request_exec): void
     {
         $header_len = curl_getinfo($client, CURLINFO_HEADER_SIZE);
@@ -73,6 +63,16 @@ class HttpResponse
         if (Context::instance()->isDebug()) {
             $this->logResponse();
         }
+    }
+
+    public function getHttpCode(): int
+    {
+        return $this->http_code;
+    }
+
+    public function getHeaders(): array
+    {
+        return $this->headers;
     }
 
     protected function setHeaders(array $request, string $header_string): void
@@ -119,14 +119,20 @@ class HttpResponse
 
     protected function logResponse(): void
     {
-        Logger::info('┌---------------------HTTP RESPONSE---------------------');
-        Logger::info('│');
-        Logger::info('│');
-        Logger::info('│' . $this->http_code);
-        Logger::info('│' . $this->meta['url']);
-        Logger::info('│');
-        Logger::info('│');
-        Logger::info('│' . $this->body);
-        Logger::info('└------------------------------------------------------');
+        $headers = "";
+        foreach ($this->headers as $name => $value) {
+            $headers .= $name . ': ' . $value . "\n";
+        }
+        $uri = $this->meta['url'];
+        $rawResponse = <<<EOF
+>>> RESPONSE START >>>
+$this->http_code $uri
+$headers
+
+$this->body
+>>> RESPONSE END>>>
+EOF;
+
+        Logger::info($rawResponse);
     }
 }

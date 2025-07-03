@@ -37,15 +37,26 @@ class HttpClient
     }
 
     /**
+     * 初始化
+     * @param             $base_url string 基础URL
+     * @return HttpClient
+     */
+    public static function init(string $base_url = ''): HttpClient
+    {
+        return new HttpClient($base_url);
+    }
+
+    /**
      * 设置代理
      * @param         $host
      * @param         $port
-     * @param  string $username
-     * @param  string $password
+     * @param string $username
+     * @param string $password
      * @return $this
      */
     public function proxy($host, $port, string $username = '', string $password = ''): HttpClient
     {
+
         if (!empty($host)) {
             curl_setopt($this->curl, CURLOPT_PROXY, $host);
             curl_setopt($this->curl, CURLOPT_PROXYPORT, $port);
@@ -65,15 +76,6 @@ class HttpClient
     {
         curl_setopt($this->curl, CURLOPT_TIMEOUT, $timeout);
         return $this;
-    }
-    /**
-     * 初始化
-     * @param             $base_url string 基础URL
-     * @return HttpClient
-     */
-    public static function init(string $base_url = ''): HttpClient
-    {
-        return new HttpClient($base_url);
     }
 
     public function __destruct()
@@ -111,8 +113,8 @@ class HttpClient
 
     /**
      * 设置CURL选项
-     * @param  int        $curl_opt
-     * @param  mixed      $value
+     * @param int $curl_opt
+     * @param mixed $value
      * @return HttpClient
      */
     public function setOption(int $curl_opt, $value): HttpClient
@@ -123,8 +125,8 @@ class HttpClient
 
     /**
      * post请求
-     * @param  array|string $data         post的数据
-     * @param  string       $content_type
+     * @param array|string $data post的数据
+     * @param string $content_type
      * @return $this
      */
     public function post($data, string $content_type = 'json'): self
@@ -154,8 +156,8 @@ class HttpClient
 
     /**
      * put请求
-     * @param  array  $data
-     * @param  string $content_type
+     * @param array $data
+     * @param string $content_type
      * @return $this
      */
     public function put(array $data, string $content_type = 'json'): HttpClient
@@ -167,8 +169,8 @@ class HttpClient
 
     /**
      * patch请求
-     * @param  array  $data
-     * @param  string $content_type
+     * @param array $data
+     * @param string $content_type
      * @return $this
      */
     public function patch(array $data, string $content_type = 'json'): HttpClient
@@ -190,8 +192,8 @@ class HttpClient
 
     /**
      * 发出请求
-     * @param  string            $path
-     * @param  array             $url_params
+     * @param string $path
+     * @param array $url_params
      * @return HttpResponse|null
      * @throws HttpException
      */
@@ -202,7 +204,9 @@ class HttpClient
             $this->url_params = http_build_query($url_params);
         }
 
-        $this->setOption(CURLOPT_URL, $this->url());
+        $url = $this->url();
+
+        $this->setOption(CURLOPT_URL, $url);
 
         $headers = [];
         foreach ($this->headers as $key => $header) {
@@ -218,22 +222,37 @@ class HttpClient
         $this->setOption(CURLOPT_RETURNTRANSFER, true);
         $this->setOption(CURLOPT_FOLLOWLOCATION, true);
         try {
+
+
             if (Context::instance()->isDebug()) {
-                $this->setOption(CURLOPT_VERBOSE, true);
-                $streamVerboseHandle = fopen('php://temp', 'w+');
-                $this->setOption(CURLOPT_STDERR, $streamVerboseHandle);
+                $m = curl_getinfo($this->curl, CURLOPT_CUSTOMREQUEST);
+                if (empty($m)) {
+                    if (curl_getinfo($this->curl, CURLOPT_HTTPGET)) {
+                        $m = "GET";
+                    } else {
+                        $m = "POST";
+                    }
+                }
+                $headers_string = join("\n", $headers);
+                $body = curl_getinfo($this->curl, CURLOPT_POSTFIELDS);
+                $rawReq = <<<EOF
+
+>>> REQUEST START >>>
+$m $url
+$headers_string
+
+$body
+>>> REQUEST END>>>
+EOF;
+
+                Logger::info($rawReq);
+
             }
 
             $request_exec = curl_exec($this->curl);
 
             if ($request_exec === false) {
                 throw new HttpException("HttpClient Error: " . curl_errno($this->curl) . " " . curl_error($this->curl));
-            }
-
-            if (Context::instance()->isDebug() && isset($streamVerboseHandle)) {
-                rewind($streamVerboseHandle);
-                $verboseLog = stream_get_contents($streamVerboseHandle);
-                Logger::info('HttpClient Result', [$verboseLog]);
             }
 
             return new HttpResponse($this->curl, $headers, $request_exec);
