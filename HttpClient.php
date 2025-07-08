@@ -28,10 +28,10 @@ class HttpClient
     public function __construct($base_url = "")
     {
         $this->curl = curl_init();
-        curl_setopt($this->curl, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($this->curl, CURLOPT_SSL_VERIFYHOST, false);
-        curl_setopt($this->curl, CURLOPT_HEADER, 1);
-        curl_setopt($this->curl, CURLOPT_RETURNTRANSFER, 1);
+        $this->setOption(CURLOPT_SSL_VERIFYPEER, false);
+        $this->setOption(CURLOPT_SSL_VERIFYHOST, false);
+        $this->setOption(CURLOPT_HEADER, 1);
+        $this->setOption(CURLOPT_RETURNTRANSFER, 1);
         $this->headers['user-agent'] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.81 Safari/537.36 Edg/104.0.1293.54";
         $this->base_url = $base_url;
     }
@@ -58,11 +58,11 @@ class HttpClient
     {
 
         if (!empty($host)) {
-            curl_setopt($this->curl, CURLOPT_PROXY, $host);
-            curl_setopt($this->curl, CURLOPT_PROXYPORT, $port);
+            $this->setOption(CURLOPT_PROXY, $host);
+            $this->setOption(CURLOPT_PROXYPORT, $port);
         }
         if (!empty($username)) {
-            curl_setopt($this->curl, CURLOPT_PROXYUSERPWD, "$username:$password");
+            $this->setOption(CURLOPT_PROXYUSERPWD, "$username:$password");
         }
         return $this;
     }
@@ -74,7 +74,7 @@ class HttpClient
      */
     public function timeout(int $timeout = 30): HttpClient
     {
-        curl_setopt($this->curl, CURLOPT_TIMEOUT, $timeout);
+        $this->setOption(CURLOPT_TIMEOUT, $timeout);
         return $this;
     }
 
@@ -120,6 +120,7 @@ class HttpClient
     public function setOption(int $curl_opt, $value): HttpClient
     {
         curl_setopt($this->curl, $curl_opt, $value);
+        $this->opts[$curl_opt] = $value;
         return $this;
     }
 
@@ -152,6 +153,13 @@ class HttpClient
         }
         //$this->headers["content-length"] = mb_strlen($data);
         $this->setOption(CURLOPT_POSTFIELDS, $data);
+    }
+
+    private array $opts = [];
+
+    function getOpt($name): mixed
+    {
+        return $this->opts[$name] ?? null;
     }
 
     /**
@@ -190,6 +198,12 @@ class HttpClient
         return $this;
     }
 
+    public function httpV1():HttpClient
+    {
+        $this->setOption(CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+        return $this;
+    }
+
     /**
      * 发出请求
      * @param string $path
@@ -225,16 +239,16 @@ class HttpClient
 
 
             if (Context::instance()->isDebug()) {
-                $m = curl_getinfo($this->curl, CURLOPT_CUSTOMREQUEST);
+                $m = $this->getOpt(CURLOPT_CUSTOMREQUEST);
                 if (empty($m)) {
-                    if (curl_getinfo($this->curl, CURLOPT_HTTPGET)) {
+                    if ($this->getOpt(CURLOPT_HTTPGET)) {
                         $m = "GET";
                     } else {
                         $m = "POST";
                     }
                 }
                 $headers_string = join("\n", $headers);
-                $body = curl_getinfo($this->curl, CURLOPT_POSTFIELDS);
+                $body = $this->getOpt(CURLOPT_POSTFIELDS);
                 $rawReq = <<<EOF
 
 >>> REQUEST START >>>
