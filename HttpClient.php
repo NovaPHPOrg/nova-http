@@ -50,8 +50,8 @@ class HttpClient
      * 设置代理
      * @param         $host
      * @param         $port
-     * @param string $username
-     * @param string $password
+     * @param  string $username
+     * @param  string $password
      * @return $this
      */
     public function proxy($host, $port, string $username = '', string $password = ''): HttpClient
@@ -113,8 +113,8 @@ class HttpClient
 
     /**
      * 设置CURL选项
-     * @param int $curl_opt
-     * @param mixed $value
+     * @param  int        $curl_opt
+     * @param  mixed      $value
      * @return HttpClient
      */
     public function setOption(int $curl_opt, $value): HttpClient
@@ -126,8 +126,8 @@ class HttpClient
 
     /**
      * post请求
-     * @param array|string $data post的数据
-     * @param string $content_type
+     * @param  array|string $data         post的数据
+     * @param  string       $content_type
      * @return $this
      */
     public function post($data, string $content_type = 'json'): self
@@ -157,15 +157,15 @@ class HttpClient
 
     private array $opts = [];
 
-    function getOpt($name): mixed
+    public function getOpt($name): mixed
     {
         return $this->opts[$name] ?? null;
     }
 
     /**
      * put请求
-     * @param array $data
-     * @param string $content_type
+     * @param  array  $data
+     * @param  string $content_type
      * @return $this
      */
     public function put(array $data, string $content_type = 'json'): HttpClient
@@ -177,8 +177,8 @@ class HttpClient
 
     /**
      * patch请求
-     * @param array $data
-     * @param string $content_type
+     * @param  array  $data
+     * @param  string $content_type
      * @return $this
      */
     public function patch(array $data, string $content_type = 'json'): HttpClient
@@ -198,7 +198,7 @@ class HttpClient
         return $this;
     }
 
-    public function httpV1():HttpClient
+    public function httpV1(): HttpClient
     {
         $this->setOption(CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
         return $this;
@@ -206,8 +206,8 @@ class HttpClient
 
     /**
      * 发出请求
-     * @param string $path
-     * @param array $url_params
+     * @param  string            $path
+     * @param  array             $url_params
      * @return HttpResponse|null
      * @throws HttpException
      */
@@ -236,7 +236,6 @@ class HttpClient
         $this->setOption(CURLOPT_RETURNTRANSFER, true);
         $this->setOption(CURLOPT_FOLLOWLOCATION, true);
         try {
-
 
             if (Context::instance()->isDebug()) {
                 $m = $this->getOpt(CURLOPT_CUSTOMREQUEST);
