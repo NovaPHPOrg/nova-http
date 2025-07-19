@@ -17,14 +17,40 @@ use Error;
 use nova\framework\core\Context;
 use nova\framework\core\Logger;
 
+/**
+ * HTTP 客户端类
+ *
+ * 基于 cURL 的 HTTP 客户端，支持 GET、POST、PUT、PATCH、DELETE 等请求方法
+ * 提供链式调用接口，支持代理、超时、GZIP 压缩等功能
+ *
+ * @package nova\plugin\http
+ * @author Nova Framework
+ */
 class HttpClient
 {
+    /** @var CurlHandle|null cURL 句柄 */
     private ?CurlHandle $curl = null;
+
+    /** @var string 基础 URL */
     private string $base_url = "";
+
+    /** @var string 请求路径 */
     private string $path = "";
+
+    /** @var string URL 参数 */
     private string $url_params = "";
+
+    /** @var array 请求头 */
     private array $headers = [];
 
+    /** @var array cURL 选项配置 */
+    private array $opts = [];
+
+    /**
+     * 构造函数
+     *
+     * @param string $base_url 基础 URL
+     */
     public function __construct($base_url = "")
     {
         $this->curl = curl_init();
@@ -37,8 +63,9 @@ class HttpClient
     }
 
     /**
-     * 初始化
-     * @param             $base_url string 基础URL
+     * 初始化 HTTP 客户端
+     *
+     * @param  string     $base_url 基础 URL
      * @return HttpClient
      */
     public static function init(string $base_url = ''): HttpClient
@@ -48,11 +75,12 @@ class HttpClient
 
     /**
      * 设置代理
-     * @param         $host
-     * @param         $port
-     * @param  string $username
-     * @param  string $password
-     * @return $this
+     *
+     * @param  string     $host     代理主机地址
+     * @param  int        $port     代理端口
+     * @param  string     $username 代理用户名
+     * @param  string     $password 代理密码
+     * @return HttpClient
      */
     public function proxy($host, $port, string $username = '', string $password = ''): HttpClient
     {
@@ -68,8 +96,9 @@ class HttpClient
     }
 
     /**
-     * 设置超时时间
-     * @param             $timeout int
+     * 设置请求超时时间
+     *
+     * @param  int        $timeout 超时时间（秒），默认 30 秒
      * @return HttpClient
      */
     public function timeout(int $timeout = 30): HttpClient
@@ -78,12 +107,21 @@ class HttpClient
         return $this;
     }
 
+    /**
+     * 析构函数，关闭 cURL 连接
+     */
     public function __destruct()
     {
 
         curl_close($this->curl);
     }
 
+    /**
+     * 设置请求头
+     *
+     * @param  array      $headers 请求头数组
+     * @return HttpClient
+     */
     public function setHeaders($headers = []): HttpClient
     {
         $this->headers = $headers;
@@ -91,10 +129,11 @@ class HttpClient
     }
 
     /**
-     * 设置header
-     * @param        $key
-     * @param        $value
-     * @return $this
+     * 设置单个请求头
+     *
+     * @param  string     $key   请求头名称
+     * @param  string     $value 请求头值
+     * @return HttpClient
      */
     public function setHeader($key, $value): HttpClient
     {
@@ -103,8 +142,9 @@ class HttpClient
     }
 
     /**
-     * get请求
-     * @return $this
+     * 设置 GET 请求方法
+     *
+     * @return HttpClient
      */
     public function get(): HttpClient
     {
@@ -112,9 +152,10 @@ class HttpClient
     }
 
     /**
-     * 设置CURL选项
-     * @param  int        $curl_opt
-     * @param  mixed      $value
+     * 设置 cURL 选项
+     *
+     * @param  int        $curl_opt cURL 选项常量
+     * @param  mixed      $value    选项值
      * @return HttpClient
      */
     public function setOption(int $curl_opt, $value): HttpClient
@@ -125,10 +166,11 @@ class HttpClient
     }
 
     /**
-     * post请求
-     * @param  array|string $data         post的数据
-     * @param  string       $content_type
-     * @return $this
+     * 设置 POST 请求方法
+     *
+     * @param  array|string $data         POST 数据
+     * @param  string       $content_type 内容类型，支持 'json' 和 'form'
+     * @return HttpClient
      */
     public function post($data, string $content_type = 'json'): self
     {
@@ -137,6 +179,12 @@ class HttpClient
         return $this;
     }
 
+    /**
+     * 设置请求数据
+     *
+     * @param array|string $data         请求数据
+     * @param string       $content_type 内容类型
+     */
     private function setData($data, string $content_type = 'json'): void
     {
         $this->headers["Content-Type"] = $content_type;
@@ -155,18 +203,23 @@ class HttpClient
         $this->setOption(CURLOPT_POSTFIELDS, $data);
     }
 
-    private array $opts = [];
-
+    /**
+     * 获取 cURL 选项值
+     *
+     * @param  string $name 选项名称
+     * @return mixed  选项值
+     */
     public function getOpt($name): mixed
     {
         return $this->opts[$name] ?? null;
     }
 
     /**
-     * put请求
-     * @param  array  $data
-     * @param  string $content_type
-     * @return $this
+     * 设置 PUT 请求方法
+     *
+     * @param  array      $data         PUT 数据
+     * @param  string     $content_type 内容类型
+     * @return HttpClient
      */
     public function put(array $data, string $content_type = 'json'): HttpClient
     {
@@ -176,10 +229,11 @@ class HttpClient
     }
 
     /**
-     * patch请求
-     * @param  array  $data
-     * @param  string $content_type
-     * @return $this
+     * 设置 PATCH 请求方法
+     *
+     * @param  array      $data         PATCH 数据
+     * @param  string     $content_type 内容类型
+     * @return HttpClient
      */
     public function patch(array $data, string $content_type = 'json'): HttpClient
     {
@@ -189,8 +243,9 @@ class HttpClient
     }
 
     /**
-     * delete请求
-     * @return $this
+     * 设置 DELETE 请求方法
+     *
+     * @return HttpClient
      */
     public function delete(): HttpClient
     {
@@ -198,6 +253,11 @@ class HttpClient
         return $this;
     }
 
+    /**
+     * 设置 HTTP/1.1 协议版本
+     *
+     * @return HttpClient
+     */
     public function httpV1(): HttpClient
     {
         $this->setOption(CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
@@ -205,11 +265,12 @@ class HttpClient
     }
 
     /**
-     * 发出请求
-     * @param  string            $path
-     * @param  array             $url_params
-     * @return HttpResponse|null
-     * @throws HttpException
+     * 发送 HTTP 请求
+     *
+     * @param  string            $path       请求路径
+     * @param  array             $url_params URL 参数
+     * @return HttpResponse|null 响应对象
+     * @throws HttpException     当请求失败时抛出异常
      */
     public function send(string $path = '', array $url_params = []): ?HttpResponse
     {
@@ -277,8 +338,9 @@ EOF;
     }
 
     /**
-     * 构造url
-     * @return string
+     * 构造完整的请求 URL
+     *
+     * @return string 完整的 URL
      */
     private function url(): string
     {
@@ -296,8 +358,9 @@ EOF;
     }
 
     /**
-     * 接受GZIP
-     * @return $this
+     * 启用 GZIP 压缩支持
+     *
+     * @return HttpClient
      */
     public function gzip(): HttpClient
     {
