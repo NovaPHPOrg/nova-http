@@ -14,6 +14,8 @@ namespace nova\plugin\http;
 
 use CurlHandle;
 use Error;
+use InvalidArgumentException;
+use nova\framework\cache\Cache;
 use nova\framework\core\Context;
 use nova\framework\core\Logger;
 
@@ -46,6 +48,9 @@ class HttpClient
     /** @var array cURL 选项配置 */
     private array $opts = [];
 
+    protected Cache $cache;
+
+    protected int $cacheTime = 0;
     /**
      * 构造函数
      *
@@ -60,8 +65,14 @@ class HttpClient
         $this->setOption(CURLOPT_RETURNTRANSFER, 1);
         $this->headers['user-agent'] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.81 Safari/537.36 Edg/104.0.1293.54";
         $this->base_url = $base_url;
+        $this->cache = Context::instance()->cache;
     }
 
+    public function cache(int $cacheTime): HttpClient
+    {
+        $this->cacheTime = $cacheTime;
+        return $this;
+    }
     /**
      * 初始化 HTTP 客户端
      *
@@ -74,24 +85,64 @@ class HttpClient
     }
 
     /**
-     * 设置代理
+     * 设置代理（只接收完整 URL）
+     * 例：socks5h://user:pass@127.0.0.1:1080
+     *     http://proxy.local:3128
+     *     socks4a://10.0.0.2:1080
      *
-     * @param  string     $host     代理主机地址
-     * @param  int        $port     代理端口
-     * @param  string     $username 代理用户名
-     * @param  string     $password 代理密码
-     * @return HttpClient
+     * 传空字符串表示关闭代理。
      */
-    public function proxy($host, $port, string $username = '', string $password = ''): HttpClient
+    public function proxy(string $url = ''): HttpClient
     {
+        // 关代理
+        if ($url === '') {
+            $this->setOption(CURLOPT_PROXY, '');
+            $this->setOption(CURLOPT_PROXYPORT, 0);
+            $this->setOption(CURLOPT_PROXYUSERPWD, null);
+            $this->setOption(CURLOPT_PROXYTYPE, CURLPROXY_HTTP);
+            // 如果你之前设置过 HTTPPROXYTUNNEL，可以在这里关掉：
+            // $this->setOption(CURLOPT_HTTPPROXYTUNNEL, false);
+            return $this;
+        }
 
-        if (!empty($host)) {
-            $this->setOption(CURLOPT_PROXY, $host);
-            $this->setOption(CURLOPT_PROXYPORT, $port);
+        // 解析 URL
+        $u = parse_url($url);
+        if ($u === false || empty($u['scheme']) || empty($u['host'])) {
+            throw new InvalidArgumentException("Bad proxy url: $url");
         }
-        if (!empty($username)) {
-            $this->setOption(CURLOPT_PROXYUSERPWD, "$username:$password");
+
+        $scheme   = strtolower($u['scheme']);
+        $host     = $u['host'];
+        $port     = $u['port'] ?? 0;
+        $username = $u['user'] ?? '';
+        $password = $u['pass'] ?? '';
+
+        // 选择 CURL 的代理类型
+        $type = match ($scheme) {
+            'socks4' => CURLPROXY_SOCKS4,
+            'socks4a' => CURLPROXY_SOCKS4A,
+            'socks5h' => defined('CURLPROXY_SOCKS5_HOSTNAME') ? CURLPROXY_SOCKS5_HOSTNAME : 7,
+            'socks5' => CURLPROXY_SOCKS5,
+            default => CURLPROXY_HTTP,
+        };
+
+        $this->setOption(CURLOPT_PROXY, $host);
+        if ($port) {
+            $this->setOption(CURLOPT_PROXYPORT, (int)$port);
         }
+        $this->setOption(CURLOPT_PROXYTYPE, $type);
+
+        if ($username !== '') {
+            $this->setOption(CURLOPT_PROXYUSERPWD, $username . ':' . $password);
+            // 若需要可再加认证方式：
+            // $this->setOption(CURLOPT_PROXYAUTH, CURLAUTH_ANY);
+        }
+
+        // 如果你想默认强制 HTTP 代理走 CONNECT 隧道：
+        // if ($type === CURLPROXY_HTTP) {
+        //     $this->setOption(CURLOPT_HTTPPROXYTUNNEL, true);
+        // }
+
         return $this;
     }
 
@@ -264,6 +315,12 @@ class HttpClient
         return $this;
     }
 
+    public function dns($dns): HttpClient
+    {
+        $this->setOption(CURLOPT_RESOLVE, $dns);
+        return $this;
+    }
+
     /**
      * 发送 HTTP 请求
      *
@@ -281,6 +338,15 @@ class HttpClient
 
         $url = $this->url();
 
+        $key = md5($url);
+
+        if ($this->cacheTime > 0) {
+            $response = $this->cache->get($key);
+            if ($response instanceof HttpResponse) {
+                return $response;
+            }
+        }
+
         $this->setOption(CURLOPT_URL, $url);
 
         $headers = [];
@@ -296,6 +362,7 @@ class HttpClient
         $this->setOption(CURLOPT_HTTPHEADER, $headers);
         $this->setOption(CURLOPT_RETURNTRANSFER, true);
         $this->setOption(CURLOPT_FOLLOWLOCATION, true);
+
         try {
 
             if (Context::instance()->isDebug()) {
@@ -329,7 +396,11 @@ EOF;
                 throw new HttpException("HttpClient Error: " . curl_errno($this->curl) . " " . curl_error($this->curl));
             }
 
-            return new HttpResponse($this->curl, $headers, $request_exec);
+            $result =  new HttpResponse($this->curl, $headers, $request_exec);
+            if ($this->cacheTime > 0) {
+                $this->cache->set($key, $result, $this->cacheTime);
+            }
+            return $result;
 
         } catch (Error $exception) {
             throw new HttpException($exception->getMessage());
