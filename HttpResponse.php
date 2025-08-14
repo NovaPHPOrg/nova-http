@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace nova\plugin\http;
 
+use CurlHandle;
 use nova\framework\core\Context;
 use nova\framework\core\Logger;
 
@@ -66,12 +67,12 @@ class HttpResponse
      *
      * 初始化HTTP响应对象，解析cURL响应数据并设置相关属性。
      *
-     * @param  resource              $curl            cURL资源句柄
+     * @param CurlHandle $curl            cURL资源句柄
      * @param  array<string, string> $request_headers 请求头数组
      * @param  string                $request_exec    cURL执行返回的原始响应数据
      * @throws HttpException         当cURL执行出错时抛出异常
      */
-    public function __construct($curl, array $request_headers, string $request_exec)
+    public function __construct(CurlHandle $curl, array $request_headers, string $request_exec)
     {
         if (curl_errno($curl)) {
             throw new HttpException('cURL error: ' . curl_error($curl));
@@ -113,12 +114,12 @@ class HttpResponse
      *
      * 解析cURL响应数据，分离响应头和响应体，并设置相关属性。
      *
-     * @param  resource              $client          cURL资源句柄
+     * @param CurlHandle $client          cURL资源句柄
      * @param  array<string, string> $request_headers 请求头数组
      * @param  string                $request_exec    cURL执行返回的原始响应数据
      * @return void
      */
-    protected function setBody($client, array $request_headers, string $request_exec): void
+    protected function setBody(CurlHandle $client, array $request_headers, string $request_exec): void
     {
         $header_len = curl_getinfo($client, CURLINFO_HEADER_SIZE);
         $header_string = substr($request_exec, 0, $header_len);

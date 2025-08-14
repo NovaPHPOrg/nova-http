@@ -409,6 +409,103 @@ EOF;
     }
 
     /**
+     * 以流式回调的方式发送 HTTP 请求
+     *
+     * 使用 cURL 的回调来逐块接收响应体，适合对接 SSE/JSONL 等流式接口。
+     * 此方法不会返回完整响应体，也不做缓存。
+     *
+     * @param string                $path        请求路径
+     * @param array<string, mixed>  $url_params 追加的 URL 参数
+     * @param callable|null         $onChunk     可选，接收每个响应体分片：function(string $chunk): void
+     * @param callable|null         $onComplete  可选，请求完成回调：function(int $httpCode, array $meta, array $headers): void
+     *
+     * @return void
+     * @throws HttpException
+     */
+    public function stream(
+        string $path = '',
+        array $url_params = [],
+        ?callable $onChunk = null,
+        ?callable $onComplete = null
+    ): void {
+        $this->path = $path;
+        if (count($url_params)) {
+            $this->url_params = http_build_query($url_params);
+        }
+
+        $url = $this->url();
+
+        $headers = [];
+        foreach ($this->headers as $key => $header) {
+            if (!is_int($key)) {
+                $headers[] = "$key: $header";
+            } else {
+                $headers[] = $header;
+            }
+        }
+
+        $this->setOption(CURLOPT_URL, $url);
+        $this->setOption(CURLOPT_HTTPHEADER, $headers);
+        // 流式：不将响应作为字符串返回，也不把头部拼到输出里
+        $this->setOption(CURLOPT_RETURNTRANSFER, false);
+        $this->setOption(CURLOPT_FOLLOWLOCATION, true);
+        $this->setOption(CURLOPT_HEADER, false);
+
+        $responseHeaders = [];
+
+
+        // 响应体分片回调
+        curl_setopt($this->curl, CURLOPT_WRITEFUNCTION, function ($ch, string $chunk) use ($onChunk) {
+            if (is_callable($onChunk)) {
+                $onChunk($chunk);
+            }
+            return strlen($chunk);
+        });
+
+        try {
+            // 调试日志
+            if (Context::instance()->isDebug()) {
+                $m = $this->getOpt(CURLOPT_CUSTOMREQUEST);
+                if (empty($m)) {
+                    $m = $this->getOpt(CURLOPT_HTTPGET) ? 'GET' : 'POST';
+                }
+                $headers_string = join("\n", $headers);
+                $body = $this->getOpt(CURLOPT_POSTFIELDS);
+                $rawReq = <<<EOF
+
+>>> REQUEST START (stream) >>>
+$m $url
+$headers_string
+
+$body
+>>> REQUEST END (stream) >>>
+EOF;
+                Logger::info($rawReq);
+            }
+
+            $ok = curl_exec($this->curl);
+            if ($ok === false) {
+                throw new HttpException("HttpClient(stream) Error: " . curl_errno($this->curl) . " " . curl_error($this->curl));
+            }
+
+            $httpCode = (int)curl_getinfo($this->curl, CURLINFO_HTTP_CODE);
+            $meta = curl_getinfo($this->curl);
+
+            if (is_callable($onComplete)) {
+                $onComplete($httpCode, $meta, $responseHeaders);
+            }
+        } catch (Error $exception) {
+            throw new HttpException($exception->getMessage());
+        } finally {
+            // 恢复默认：移除回调，避免影响后续普通请求
+            curl_setopt($this->curl, CURLOPT_HEADERFUNCTION, null);
+            curl_setopt($this->curl, CURLOPT_WRITEFUNCTION, null);
+            $this->setOption(CURLOPT_RETURNTRANSFER, true);
+            $this->setOption(CURLOPT_HEADER, 1);
+        }
+    }
+
+    /**
      * 构造完整的请求 URL
      *
      * @return string 完整的 URL
