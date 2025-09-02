@@ -67,7 +67,7 @@ class HttpResponse
      *
      * 初始化HTTP响应对象，解析cURL响应数据并设置相关属性。
      *
-     * @param CurlHandle $curl            cURL资源句柄
+     * @param  CurlHandle            $curl            cURL资源句柄
      * @param  array<string, string> $request_headers 请求头数组
      * @param  string                $request_exec    cURL执行返回的原始响应数据
      * @throws HttpException         当cURL执行出错时抛出异常
@@ -114,7 +114,7 @@ class HttpResponse
      *
      * 解析cURL响应数据，分离响应头和响应体，并设置相关属性。
      *
-     * @param CurlHandle $client          cURL资源句柄
+     * @param  CurlHandle            $client          cURL资源句柄
      * @param  array<string, string> $request_headers 请求头数组
      * @param  string                $request_exec    cURL执行返回的原始响应数据
      * @return void

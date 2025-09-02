@@ -414,10 +414,10 @@ EOF;
      * 使用 cURL 的回调来逐块接收响应体，适合对接 SSE/JSONL 等流式接口。
      * 此方法不会返回完整响应体，也不做缓存。
      *
-     * @param string                $path        请求路径
-     * @param array<string, mixed>  $url_params 追加的 URL 参数
-     * @param callable|null         $onChunk     可选，接收每个响应体分片：function(string $chunk): void
-     * @param callable|null         $onComplete  可选，请求完成回调：function(int $httpCode, array $meta, array $headers): void
+     * @param string               $path       请求路径
+     * @param array<string, mixed> $url_params 追加的 URL 参数
+     * @param callable|null        $onChunk    可选，接收每个响应体分片：function(string $chunk): void
+     * @param callable|null        $onComplete 可选，请求完成回调：function(int $httpCode, array $meta, array $headers): void
      *
      * @return void
      * @throws HttpException
@@ -452,7 +452,6 @@ EOF;
         $this->setOption(CURLOPT_HEADER, false);
 
         $responseHeaders = [];
-
 
         // 响应体分片回调
         curl_setopt($this->curl, CURLOPT_WRITEFUNCTION, function ($ch, string $chunk) use ($onChunk) {
