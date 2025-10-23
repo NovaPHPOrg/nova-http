@@ -249,6 +249,8 @@ class HttpClient
             if (is_array($data)) {
                 $data = json_encode($data);
             }
+        }elseif ($content_type == 'raw') {
+            $this->headers["Content-Type"] = 'text/plain; charset=utf-8';
         }
         //$this->headers["content-length"] = mb_strlen($data);
         $this->setOption(CURLOPT_POSTFIELDS, $data);
