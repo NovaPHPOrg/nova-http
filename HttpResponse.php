@@ -206,6 +206,7 @@ class HttpResponse
      * 记录响应日志
      *
      * 在调试模式下记录完整的HTTP响应信息，包括状态码、响应头和响应体。
+     * 二进制内容（图片、文件等）和大文本（>1MB）只记录元信息，不记录响应体。
      *
      * @return void
      */
@@ -216,7 +217,13 @@ class HttpResponse
             $headers .= $name . ': ' . $value . "\n";
         }
         $uri = $this->meta['url'];
-        $rawResponse = <<<EOF
+        
+        // 判断是否应该记录响应体
+        $shouldLogBody = $this->shouldLogResponseBody();
+        
+        if ($shouldLogBody) {
+            // 记录完整响应（包含 body）
+            $rawResponse = <<<EOF
 >>> RESPONSE START >>>
 $this->http_code $uri
 $headers
@@ -224,7 +231,67 @@ $headers
 $this->body
 >>> RESPONSE END>>>
 EOF;
+        } else {
+            // 只记录元信息（不含 body）
+            $bodySize = strlen($this->body);
+            $contentType = $this->headers['Content-Type'] ?? 'unknown';
+            $rawResponse = <<<EOF
+>>> RESPONSE START >>>
+$this->http_code $uri
+$headers
+
+[BINARY/LARGE CONTENT - Type: $contentType, Size: $bodySize bytes]
+>>> RESPONSE END>>>
+EOF;
+        }
 
         Logger::info($rawResponse);
+    }
+    
+    /**
+     * 判断是否应该记录响应体
+     * 
+     * 规则：
+     * 1. 文本类型才记录（text/*, application/json, application/xml 等）
+     * 2. 大小不超过 1MB（1024000 字节）
+     * 
+     * @return bool
+     */
+    private function shouldLogResponseBody(): bool
+    {
+        $contentType = $this->headers['Content-Type'] ?? '';
+        $bodySize = strlen($this->body);
+        
+        // 超过 1MB 不记录
+        if ($bodySize > 1024000) {
+            return false;
+        }
+        
+        // 白名单：允许记录的 Content-Type
+        $textTypes = [
+            'text/',                              // text/html, text/plain, text/css 等
+            'application/json',                   // JSON API
+            'application/xml',                    // XML API
+            'application/javascript',             // JS 脚本
+            'application/x-www-form-urlencoded',  // 表单提交
+            'application/ld+json',                // JSON-LD（语义化数据）
+            'application/graphql',                // GraphQL API
+            'application/yaml',                   // YAML 配置
+            'application/x-yaml',                 // YAML（旧格式）
+        ];
+        
+        foreach ($textTypes as $type) {
+            if (str_contains(strtolower($contentType), strtolower($type))) {
+                return true;
+            }
+        }
+        
+        // 空响应体或未知类型：记录
+        if ($bodySize === 0 || empty($contentType)) {
+            return true;
+        }
+        
+        // 其他情况（图片、视频、二进制文件等）不记录
+        return false;
     }
 }
