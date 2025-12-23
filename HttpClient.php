@@ -249,7 +249,7 @@ class HttpClient
             if (is_array($data)) {
                 $data = json_encode($data);
             }
-        }elseif ($content_type == 'raw') {
+        } elseif ($content_type == 'raw') {
             $this->headers["Content-Type"] = 'text/plain; charset=utf-8';
         }
         //$this->headers["content-length"] = mb_strlen($data);
@@ -539,25 +539,27 @@ EOF;
 
     /**
      * 创建一个配置好的 curl 句柄（供 MultiHttp 等批量请求使用）
-     * 
-     * @param string $url 目标 URL
+     *
+     * @param  string     $url 目标 URL
      * @return CurlHandle 配置好的 curl 句柄
      * @internal 此方法用于内部批量请求，不建议直接使用
      */
     public function createConfiguredHandle(string $url): CurlHandle
     {
         $ch = curl_init();
-        
+
         // 复制当前实例的所有配置
         foreach ($this->opts as $opt => $value) {
             // 跳过 URL 相关的选项，因为我们会单独设置
-            if ($opt === CURLOPT_URL) continue;
+            if ($opt === CURLOPT_URL) {
+                continue;
+            }
             curl_setopt($ch, $opt, $value);
         }
-        
+
         // 设置目标 URL
         curl_setopt($ch, CURLOPT_URL, $url);
-        
+
         // 应用请求头
         $headers = [];
         foreach ($this->headers as $key => $header) {
@@ -568,10 +570,10 @@ EOF;
             }
         }
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        
+
         // 确保基本配置
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        
+
         return $ch;
     }
 }

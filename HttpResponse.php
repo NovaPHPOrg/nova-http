@@ -217,10 +217,10 @@ class HttpResponse
             $headers .= $name . ': ' . $value . "\n";
         }
         $uri = $this->meta['url'];
-        
+
         // 判断是否应该记录响应体
         $shouldLogBody = $this->shouldLogResponseBody();
-        
+
         if ($shouldLogBody) {
             // 记录完整响应（包含 body）
             $rawResponse = <<<EOF
@@ -247,26 +247,26 @@ EOF;
 
         Logger::info($rawResponse);
     }
-    
+
     /**
      * 判断是否应该记录响应体
-     * 
+     *
      * 规则：
      * 1. 文本类型才记录（text/*, application/json, application/xml 等）
      * 2. 大小不超过 1MB（1024000 字节）
-     * 
+     *
      * @return bool
      */
     private function shouldLogResponseBody(): bool
     {
         $contentType = $this->headers['Content-Type'] ?? '';
         $bodySize = strlen($this->body);
-        
+
         // 超过 1MB 不记录
         if ($bodySize > 1024000) {
             return false;
         }
-        
+
         // 白名单：允许记录的 Content-Type
         $textTypes = [
             'text/',                              // text/html, text/plain, text/css 等
@@ -279,18 +279,18 @@ EOF;
             'application/yaml',                   // YAML 配置
             'application/x-yaml',                 // YAML（旧格式）
         ];
-        
+
         foreach ($textTypes as $type) {
             if (str_contains(strtolower($contentType), strtolower($type))) {
                 return true;
             }
         }
-        
+
         // 空响应体或未知类型：记录
         if ($bodySize === 0 || empty($contentType)) {
             return true;
         }
-        
+
         // 其他情况（图片、视频、二进制文件等）不记录
         return false;
     }
