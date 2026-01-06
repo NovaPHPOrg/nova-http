@@ -378,6 +378,20 @@ class HttpClient
                 }
                 $headers_string = join("\n", $headers);
                 $body = $this->getOpt(CURLOPT_POSTFIELDS);
+                
+                // 处理数组类型的 body（如 multipart/form-data）
+                if (is_array($body)) {
+                    $bodyParts = [];
+                    foreach ($body as $key => $value) {
+                        if ($value instanceof \CURLFile) {
+                            $bodyParts[] = "$key: [FILE] " . $value->getFilename();
+                        } else {
+                            $bodyParts[] = "$key: $value";
+                        }
+                    }
+                    $body = implode("\n", $bodyParts);
+                }
+                
                 $rawReq = <<<EOF
 
 >>> REQUEST START >>>
