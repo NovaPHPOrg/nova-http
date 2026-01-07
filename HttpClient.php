@@ -378,7 +378,7 @@ class HttpClient
                 }
                 $headers_string = join("\n", $headers);
                 $body = $this->getOpt(CURLOPT_POSTFIELDS);
-                
+
                 // 处理数组类型的 body（如 multipart/form-data）
                 if (is_array($body)) {
                     $bodyParts = [];
@@ -391,7 +391,7 @@ class HttpClient
                     }
                     $body = implode("\n", $bodyParts);
                 }
-                
+
                 $rawReq = <<<EOF
 
 >>> REQUEST START >>>
