@@ -118,18 +118,19 @@ class HttpDownloadManager
      */
     public function download(string $url, string $savePath, ?callable $onProgress = null): bool
     {
-        // 获取文件大小
-        $fileInfo = $this->getFileInfo($url);
-        $totalSize = $fileInfo['size'];
+        // 尝试获取文件大小，但不强制要求（GitHub 等动态生成的文件可能没有 Content-Length）
+        try {
+            $fileInfo = $this->getFileInfo($url);
+            $totalSize = $fileInfo['size'];
+        } catch (HttpException $e) {
+            // HEAD 请求失败时，仍然尝试下载，只是没有进度条
+            $totalSize = 0;
+        }
 
         // 下载阶段必须跟随重定向，否则像 nmap 这类下载地址只会返回 302 而没有实体内容
         // HttpClient::send() 内部会自己打开 FOLLOWLOCATION，但这里我们直接用 createConfiguredHandle，
         // 所以需要显式打开。
         $this->client->setOption(CURLOPT_FOLLOWLOCATION, true);
-
-        if ($totalSize === 0) {
-            throw new HttpException("Cannot determine file size for $url");
-        }
 
         $startTime = microtime(true);
 
@@ -153,8 +154,8 @@ class HttpDownloadManager
             curl_setopt($ch, CURLOPT_FILE, $fp);
             curl_setopt($ch, CURLOPT_HEADER, false);
 
-            // 进度回调
-            if (is_callable($onProgress)) {
+            // 进度回调（只在能获取到文件大小时才启用进度条）
+            if ($totalSize > 0 && is_callable($onProgress)) {
                 curl_setopt($ch, CURLOPT_NOPROGRESS, false);
                 curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, function (
                     $resource,
@@ -236,22 +237,23 @@ class HttpDownloadManager
             throw new InvalidArgumentException("Threads must be at least 1");
         }
 
-        // 获取文件信息
-        $fileInfo = $this->getFileInfo($url);
-        $totalSize = $fileInfo['size'];
-        $supportsRange = $fileInfo['supportsRange'];
+        // 尝试获取文件信息，失败则降级到单线程下载
+        try {
+            $fileInfo = $this->getFileInfo($url);
+            $totalSize = $fileInfo['size'];
+            $supportsRange = $fileInfo['supportsRange'];
+        } catch (HttpException $e) {
+            // HEAD 请求失败，直接用单线程下载
+            return $this->download($url, $savePath, $onProgress);
+        }
 
         // 多线程下载同样需要确保所有分片请求都会跟随重定向
         $this->client->setOption(CURLOPT_FOLLOWLOCATION, true);
 
-        if ($totalSize === 0) {
-            throw new HttpException("Cannot determine file size for $url");
-        }
-
         $startTime = microtime(true);
 
-        // 如果不支持 Range 或线程数为 1，降级到单线程下载
-        if (!$supportsRange || $threads === 1) {
+        // 无法确定大小或不支持 Range 时，降级到单线程下载
+        if ($totalSize === 0 || !$supportsRange || $threads === 1) {
             return $this->download($url, $savePath, $onProgress);
         }
 
