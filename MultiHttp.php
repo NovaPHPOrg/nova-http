@@ -18,8 +18,10 @@ declare(strict_types=1);
  *     ->setHeader('X-Custom', 'value');
  *
  * $multi = new MultiHttp($urls, 5, $client);
- * $multi->execute(function($url, $httpCode, $content) {
- *     echo "Downloaded $url: $httpCode\n";
+ * $multi->execute(function($url, $response) {
+ *     // $response 是 HttpResponse 对象
+ *     echo "Downloaded $url: " . $response->getHttpCode() . "\n";
+ *     echo "Body: " . $response->getBody() . "\n";
  * });
  * ```
  *
@@ -102,8 +104,11 @@ class MultiHttp
 
                 if (isset($this->activeHandles[$handleId])) {
                     $url = $this->activeHandles[$handleId];
-                    $responseCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                    $callback($url, $responseCode, $result);
+
+                    $response = new HttpResponse($ch, [], $result);
+                    $callback($url, $response);
+
+
                     unset($this->activeHandles[$handleId]);
                 }
 
