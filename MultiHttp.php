@@ -108,7 +108,6 @@ class MultiHttp
                     $response = new HttpResponse($ch, [], $result);
                     $callback($url, $response);
 
-
                     unset($this->activeHandles[$handleId]);
                 }
 
