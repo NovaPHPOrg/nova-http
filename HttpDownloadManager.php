@@ -418,15 +418,21 @@ class HttpDownloadManager
             $fileHandles[$i] = $fp;
         }
 
-        // 执行并发下载
-        $running = 0;
+        // 执行并发下载（select 返回 -1 时退让，避免空转打满 CPU）
         do {
-            curl_multi_exec($mh, $running);
-            curl_multi_select($mh);
-        } while ($running > 0);
+            $status = curl_multi_exec($mh, $running);
+            if ($running > 0 && curl_multi_select($mh) === -1) {
+                usleep(100);
+            }
+        } while ($running > 0 && $status === CURLM_OK);
 
-        // 清理资源
-        foreach ($handles as $ch) {
+        // 校验每个分片：Range 成功必须是 206；若服务器忽略 Range 返回 200（全量）则数据不可信
+        $failed = [];
+        foreach ($handles as $i => $ch) {
+            $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            if ($code !== 206) {
+                $failed[$i] = $code;
+            }
             curl_multi_remove_handle($mh, $ch);
             curl_close($ch);
         }
@@ -435,6 +441,15 @@ class HttpDownloadManager
         // 关闭文件句柄
         foreach ($fileHandles as $fp) {
             fclose($fp);
+        }
+
+        if ($failed !== []) {
+            $detail = implode(', ', array_map(
+                static fn(int $i, int $code): string => "chunk #{$i}=HTTP {$code}",
+                array_keys($failed),
+                array_values($failed),
+            ));
+            throw new HttpException("Range download failed ({$detail}); server may not support partial content");
         }
     }
 

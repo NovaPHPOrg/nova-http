@@ -259,39 +259,23 @@ EOF;
      */
     private function shouldLogResponseBody(): bool
     {
-        $contentType = $this->headers['Content-Type'] ?? '';
-        $bodySize = strlen($this->body);
-
         // 超过 1MB 不记录
-        if ($bodySize > 1024000) {
+        if (strlen($this->body) > 1024000) {
             return false;
         }
 
-        // 白名单：允许记录的 Content-Type
-        $textTypes = [
-            'text/',                              // text/html, text/plain, text/css 等
-            'application/json',                   // JSON API
-            'application/xml',                    // XML API
-            'application/javascript',             // JS 脚本
-            'application/x-www-form-urlencoded',  // 表单提交
-            'application/ld+json',                // JSON-LD（语义化数据）
-            'application/graphql',                // GraphQL API
-            'application/yaml',                   // YAML 配置
-            'application/x-yaml',                 // YAML（旧格式）
-        ];
+        // 文本类（含 json/xml/yaml/js/表单）记录；空类型也记录；其余二进制不记录
+        $contentType = strtolower($this->headers['Content-Type'] ?? '');
+        if ($contentType === '') {
+            return true;
+        }
 
-        foreach ($textTypes as $type) {
-            if (str_contains(strtolower($contentType), strtolower($type))) {
+        foreach (['text/', 'json', 'xml', 'yaml', 'javascript', 'x-www-form-urlencoded'] as $needle) {
+            if (str_contains($contentType, $needle)) {
                 return true;
             }
         }
 
-        // 空响应体或未知类型：记录
-        if ($bodySize === 0 || empty($contentType)) {
-            return true;
-        }
-
-        // 其他情况（图片、视频、二进制文件等）不记录
         return false;
     }
 }

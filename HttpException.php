@@ -26,17 +26,4 @@ use Exception;
  */
 class HttpException extends Exception
 {
-    /**
-     * 构造函数
-     *
-     * 创建一个新的HTTP异常实例。
-     *
-     * @param string         $message  异常消息，默认为空字符串
-     * @param int            $code     异常代码，默认为0
-     * @param Exception|null $previous 前一个异常，用于异常链
-     */
-    public function __construct($message = "", $code = 0, Exception $previous = null)
-    {
-        parent::__construct($message, $code, $previous);
-    }
 }

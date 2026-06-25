@@ -5,132 +5,130 @@ declare(strict_types=1);
  * Copyright (c) 2022. Ankio. All Rights Reserved.
  ******************************************************************************/
 
+namespace nova\plugin\http;
+
 /**
- * 批量并发 HTTP 请求类
+ * 批量并发 HTTP 请求。
  *
- * 复用 HttpClient 的配置能力，支持代理、超时、自定义请求头等所有特性
+ * 两种入口共用同一套并发循环 {@see self::run()}：
+ * - 实例式：(new MultiHttp($urls, 5, $client))->execute(fn($url, $resp) => ...)
+ * - 请求式：MultiHttp::runRequests($requests, 5, fn($url, $resp, $provider, $index) => ...)
+ *   每个 request 形如 ['url' => string, 'client' => HttpClient, 'provider' => mixed?, 'index' => int?]
  *
- * 使用示例：
- * ```php
- * $client = HttpClient::init()
- *     ->timeout(30)
- *     ->proxy('socks5h://127.0.0.1:1080')
- *     ->setHeader('X-Custom', 'value');
- *
- * $multi = new MultiHttp($urls, 5, $client);
- * $multi->execute(function($url, $response) {
- *     // $response 是 HttpResponse 对象
- *     echo "Downloaded $url: " . $response->getHttpCode() . "\n";
- *     echo "Body: " . $response->getBody() . "\n";
- * });
- * ```
+ * 失败的请求（curl 出错或无响应体）不会触发回调。
  *
  * @package nova\plugin\http
  */
-
-namespace nova\plugin\http;
-
-use CurlMultiHandle;
-
 class MultiHttp
 {
+    /** @var list<string> */
     private array $urls;
+
     private int $maxThreads;
-    private CurlMultiHandle $mh;
-    private array $activeHandles = [];
-    private ?HttpClient $clientTemplate;
+
+    private HttpClient $clientTemplate;
 
     /**
-     * @param array           $urls           要请求的 URL 列表
+     * @param list<string> $urls 要请求的 URL 列表
      * @param int             $maxThreads     最大并发数
      * @param HttpClient|null $clientTemplate HttpClient 模板，为 null 则使用默认配置
      */
     public function __construct(array $urls, int $maxThreads = 5, ?HttpClient $clientTemplate = null)
     {
-        $this->urls = $urls;
+        $this->urls = array_values($urls);
         $this->maxThreads = $maxThreads;
         $this->clientTemplate = $clientTemplate ?? HttpClient::init();
-        $this->mh = curl_multi_init();
     }
 
     /**
-     * 执行批量请求
+     * 用统一模板并发请求一组 URL。
      *
-     * @param callable $callback 回调函数 function(string $url, int $httpCode, string $content): void
+     * @param callable(string, HttpResponse): void $callback
      */
     public function execute(callable $callback): void
     {
-        $this->initializeHandles();
-        $this->executeMultiHandle($callback);
-        $this->closeMultiHandle();
+        $requests = array_map(
+            fn(string $url): array => ['url' => $url, 'client' => $this->clientTemplate],
+            $this->urls,
+        );
+
+        self::run($requests, $this->maxThreads, $callback);
     }
 
     /**
-     * 初始化线程池
+     * 每项可指定独立 HttpClient（如 uapis 需 Authorization）。
+     *
+     * @param list<array{url: string, client: HttpClient, provider?: mixed, index?: int}> $requests
+     * @param callable(string, HttpResponse, mixed, int): void $callback
      */
-    private function initializeHandles(): void
+    public static function runRequests(array $requests, int $maxThreads, callable $callback): void
     {
-        for ($i = 0; $i < min($this->maxThreads, count($this->urls)); $i++) {
-            if (!empty($this->urls)) {
-                $this->addRequest(array_shift($this->urls));
-            }
+        self::run(array_values($requests), $maxThreads, $callback);
+    }
+
+    /**
+     * 并发执行队列：始终保持最多 $maxThreads 个在途请求，完成一个补一个。
+     *
+     * @param list<array{url: string, client: HttpClient, provider?: mixed, index?: int}> $queue
+     * @param callable $callback
+     */
+    private static function run(array $queue, int $maxThreads, callable $callback): void
+    {
+        if ($queue === []) {
+            return;
         }
-    }
 
-    /**
-     * 添加一个请求到线程池
-     */
-    private function addRequest(string $url): void
-    {
-        // 使用 HttpClient 创建配置好的 curl 句柄
-        $ch = $this->clientTemplate->createConfiguredHandle($url);
+        $maxThreads = max(1, $maxThreads);
+        $mh = curl_multi_init();
 
-        curl_multi_add_handle($this->mh, $ch);
-        $this->activeHandles[(int)$ch] = $url;
-    }
+        /** @var array<int, array{url: string, client: HttpClient, provider?: mixed, index?: int}> $active */
+        $active = [];
 
-    /**
-     * 执行并发请求
-     */
-    private function executeMultiHandle(callable $callback): void
-    {
+        $launch = static function () use (&$queue, &$active, $mh): void {
+            $entry = array_shift($queue);
+            $ch = $entry['client']->createConfiguredHandle($entry['url']);
+            curl_multi_add_handle($mh, $ch);
+            $active[(int)$ch] = $entry;
+        };
+
+        for ($i = 0; $i < $maxThreads && $queue !== []; $i++) {
+            $launch();
+        }
+
         do {
-            $status = curl_multi_exec($this->mh, $running);
+            $status = curl_multi_exec($mh, $running);
 
-            while ($done = curl_multi_info_read($this->mh)) {
+            while ($done = curl_multi_info_read($mh)) {
                 $ch = $done['handle'];
-                $result = curl_multi_getcontent($ch);
-                $handleId = (int)$ch;
+                $id = (int)$ch;
+                $entry = $active[$id] ?? null;
+                unset($active[$id]);
 
-                if (isset($this->activeHandles[$handleId])) {
-                    $url = $this->activeHandles[$handleId];
-
-                    $response = new HttpResponse($ch, [], $result);
-                    $callback($url, $response);
-
-                    unset($this->activeHandles[$handleId]);
+                // 仅成功且有响应体才回调；失败请求静默跳过，不喂 null 给调用方
+                $content = $done['result'] === CURLE_OK ? curl_multi_getcontent($ch) : null;
+                if ($entry !== null && is_string($content)) {
+                    $callback(
+                        $entry['url'],
+                        new HttpResponse($ch, [], $content),
+                        $entry['provider'] ?? null,
+                        $entry['index'] ?? 0,
+                    );
                 }
 
-                curl_multi_remove_handle($this->mh, $ch);
+                curl_multi_remove_handle($mh, $ch);
                 curl_close($ch);
 
-                // 如果还有待处理的 URL，添加到线程池
-                if (!empty($this->urls)) {
-                    $this->addRequest(array_shift($this->urls));
+                if ($queue !== []) {
+                    $launch();
                 }
             }
 
-            if ($running > 0) {
-                curl_multi_select($this->mh);
+            // select 在无就绪 fd 时返回 -1，必须退让，否则空转打满 CPU
+            if ($running > 0 && curl_multi_select($mh) === -1) {
+                usleep(100);
             }
-        } while ($running && $status == CURLM_OK);
-    }
+        } while ($running && $status === CURLM_OK);
 
-    /**
-     * 关闭多线程句柄
-     */
-    private function closeMultiHandle(): void
-    {
-        curl_multi_close($this->mh);
+        curl_multi_close($mh);
     }
 }
