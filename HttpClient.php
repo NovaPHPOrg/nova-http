@@ -512,8 +512,9 @@ EOF;
         } catch (Error $exception) {
             throw new HttpException($exception->getMessage());
         } finally {
-            // 恢复默认：移除回调，避免影响后续普通请求
-            curl_setopt($this->curl, CURLOPT_HEADERFUNCTION, null);
+            // 仅清除本方法设置的写回调；勿动 HEADERFUNCTION：
+            // 对其置 null 会在句柄复用时让下次 curl_exec 抛
+            // "Invalid callback , no array or string given"（多轮工具调用复用同一句柄即触发）
             curl_setopt($this->curl, CURLOPT_WRITEFUNCTION, null);
             $this->setOption(CURLOPT_RETURNTRANSFER, true);
             $this->setOption(CURLOPT_HEADER, 1);
