@@ -29,7 +29,7 @@ class MultiHttp
     private HttpClient $clientTemplate;
 
     /**
-     * @param list<string> $urls 要请求的 URL 列表
+     * @param list<string>    $urls           要请求的 URL 列表
      * @param int             $maxThreads     最大并发数
      * @param HttpClient|null $clientTemplate HttpClient 模板，为 null 则使用默认配置
      */
@@ -48,7 +48,7 @@ class MultiHttp
     public function execute(callable $callback): void
     {
         $requests = array_map(
-            fn(string $url): array => ['url' => $url, 'client' => $this->clientTemplate],
+            fn (string $url): array => ['url' => $url, 'client' => $this->clientTemplate],
             $this->urls,
         );
 
@@ -59,7 +59,7 @@ class MultiHttp
      * 每项可指定独立 HttpClient（如 uapis 需 Authorization）。
      *
      * @param list<array{url: string, client: HttpClient, provider?: mixed, index?: int}> $requests
-     * @param callable(string, HttpResponse, mixed, int): void $callback
+     * @param callable(string, HttpResponse, mixed, int): void                            $callback
      */
     public static function runRequests(array $requests, int $maxThreads, callable $callback): void
     {
@@ -70,7 +70,7 @@ class MultiHttp
      * 并发执行队列：始终保持最多 $maxThreads 个在途请求，完成一个补一个。
      *
      * @param list<array{url: string, client: HttpClient, provider?: mixed, index?: int}> $queue
-     * @param callable $callback
+     * @param callable                                                                    $callback
      */
     private static function run(array $queue, int $maxThreads, callable $callback): void
     {

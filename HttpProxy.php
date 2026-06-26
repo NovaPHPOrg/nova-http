@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace nova\plugin\http;
 
 use InvalidArgumentException;
+
 use function nova\framework\config;
 
 /**

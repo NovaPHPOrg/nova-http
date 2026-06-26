@@ -445,7 +445,7 @@ class HttpDownloadManager
 
         if ($failed !== []) {
             $detail = implode(', ', array_map(
-                static fn(int $i, int $code): string => "chunk #{$i}=HTTP {$code}",
+                static fn (int $i, int $code): string => "chunk #{$i}=HTTP {$code}",
                 array_keys($failed),
                 array_values($failed),
             ));
