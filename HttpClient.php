@@ -109,55 +109,7 @@ class HttpClient
      */
     public function proxy(string $url = ''): HttpClient
     {
-        // 关代理
-        if ($url === '') {
-            $this->setOption(CURLOPT_PROXY, '');
-            $this->setOption(CURLOPT_PROXYPORT, 0);
-            $this->setOption(CURLOPT_PROXYUSERPWD, null);
-            $this->setOption(CURLOPT_PROXYTYPE, CURLPROXY_HTTP);
-            // 如果你之前设置过 HTTPPROXYTUNNEL，可以在这里关掉：
-            // $this->setOption(CURLOPT_HTTPPROXYTUNNEL, false);
-            return $this;
-        }
-
-        // 解析 URL
-        $u = parse_url($url);
-        if ($u === false || empty($u['scheme']) || empty($u['host'])) {
-            throw new InvalidArgumentException("Bad proxy url: $url");
-        }
-
-        $scheme   = strtolower($u['scheme']);
-        $host     = $u['host'];
-        $port     = $u['port'] ?? 0;
-        $username = $u['user'] ?? '';
-        $password = $u['pass'] ?? '';
-
-        // 选择 CURL 的代理类型
-        $type = match ($scheme) {
-            'socks4' => CURLPROXY_SOCKS4,
-            'socks4a' => CURLPROXY_SOCKS4A,
-            'socks5h' => defined('CURLPROXY_SOCKS5_HOSTNAME') ? CURLPROXY_SOCKS5_HOSTNAME : 7,
-            'socks5' => CURLPROXY_SOCKS5,
-            default => CURLPROXY_HTTP,
-        };
-
-        $this->setOption(CURLOPT_PROXY, $host);
-        if ($port) {
-            $this->setOption(CURLOPT_PROXYPORT, (int)$port);
-        }
-        $this->setOption(CURLOPT_PROXYTYPE, $type);
-
-        if ($username !== '') {
-            $this->setOption(CURLOPT_PROXYUSERPWD, $username . ':' . $password);
-            // 若需要可再加认证方式：
-            // $this->setOption(CURLOPT_PROXYAUTH, CURLAUTH_ANY);
-        }
-
-        // 如果你想默认强制 HTTP 代理走 CONNECT 隧道：
-        // if ($type === CURLPROXY_HTTP) {
-        //     $this->setOption(CURLOPT_HTTPPROXYTUNNEL, true);
-        // }
-
+        HttpProxy::apply($this,$url);
         return $this;
     }
 
@@ -606,4 +558,11 @@ EOF;
 
         return $ch;
     }
+
+    public function autoProxy():self
+    {
+        HttpProxy::autoApply($this);
+        return $this;
+    }
+
 }
