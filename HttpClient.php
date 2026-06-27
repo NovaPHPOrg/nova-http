@@ -56,14 +56,29 @@ class HttpClient
      *
      * @param string $base_url 基础 URL
      */
-    public function __construct($base_url = "")
+    public function __construct(string $base_url = "")
     {
         $this->curl = curl_init();
         $this->setOption(CURLOPT_SSL_VERIFYPEER, false);
         $this->setOption(CURLOPT_SSL_VERIFYHOST, false);
         $this->setOption(CURLOPT_HEADER, 1);
         $this->setOption(CURLOPT_RETURNTRANSFER, 1);
-        $this->headers['user-agent'] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.81 Safari/537.36 Edg/104.0.1293.54";
+        $this->headers = [
+            'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
+            'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Language' => 'zh-CN,zh;q=0.9,en;q=0.8',
+            'Accept-Encoding' => 'gzip, deflate, br',
+            'Connection' => 'keep-alive',
+            'Upgrade-Insecure-Requests' => '1',
+            'Sec-Fetch-Dest' => 'document',
+            'Sec-Fetch-Mode' => 'navigate',
+            'Sec-Fetch-Site' => 'none',
+            'Sec-Fetch-User' => '?1',
+            'Sec-Ch-Ua' => '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
+            'Sec-Ch-Ua-Mobile' => '?0',
+            'Sec-Ch-Ua-Platform' => '"macOS"',
+            'Cache-Control' => 'max-age=0',
+        ];
         $this->base_url = $base_url;
         $this->cache = Context::instance()->cache;
     }
