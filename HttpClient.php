@@ -14,7 +14,6 @@ namespace nova\plugin\http;
 
 use CurlHandle;
 use Error;
-use InvalidArgumentException;
 use nova\framework\cache\Cache;
 use nova\framework\core\Context;
 use nova\framework\core\Logger;
@@ -108,7 +107,7 @@ class HttpClient
      */
     public function proxy(string $url = ''): HttpClient
     {
-        HttpProxy::apply($this,$url);
+        HttpProxy::apply($this, $url);
         return $this;
     }
 
@@ -558,7 +557,7 @@ EOF;
         return $ch;
     }
 
-    public function autoProxy():self
+    public function autoProxy(): self
     {
         HttpProxy::autoApply($this);
         return $this;
