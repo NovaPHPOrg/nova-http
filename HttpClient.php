@@ -378,7 +378,7 @@ EOF;
             }
 
             $result =  new HttpResponse($this->curl, $headers, $request_exec);
-            if ($this->cacheTime > 0) {
+            if ($this->cacheTime > 0 && $result->getHttpCode() === 200) {
                 $this->cache->set($key, $result, $this->cacheTime);
             }
             return $result;
